@@ -1,0 +1,16 @@
+{
+  "name": "wemo-server",
+  "version": "1.0.0",
+  "description": "HTTP server for Mono Wemo app",
+  "main": "server.js",
+  "dependencies": {
+    "wemo-client": "^0.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Monolit (developer.openmono.com)",
+  "license": "ISC"
+}

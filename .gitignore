@@ -1,0 +1,5 @@
+mono_app/sim
+mono_app/build
+*.elf
+*.map
+server/node_modules
