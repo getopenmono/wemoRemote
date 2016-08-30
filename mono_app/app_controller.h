@@ -9,9 +9,9 @@
 #include <wireless/module_communication.h>
 #include <SPI.h>
 
-#define WIFI_SSID "ptype"
-#define WIFI_PASSPHRASE "CAI7-huzzas"
-#define SERVER_HOST "10.0.41.190:3090"
+#define WIFI_SSID "SSID"
+#define WIFI_PASSPHRASE "PASSPHRASE"
+#define SERVER_HOST "my_wemo_server"
 
 using namespace mono;
 using namespace mono::ui;
