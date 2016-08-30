@@ -22,5 +22,5 @@ wemo.discover(function(deviceInfo) {
     });
 
     console.log("Server started...");
-    postServer.listen(80);
+    postServer.listen(3090);
 });
