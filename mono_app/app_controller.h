@@ -1,6 +1,5 @@
-// Mono Application Template V1.1
-//
-
+// This software is part of OpenMono, see http://developer.openmono.com
+// Released under the MIT license, see LICENSE.txt
 #ifndef app_controller_h
 #define app_controller_h
 
@@ -29,22 +28,6 @@ public:
     void repaint();
 };
 
-//class OnOffButton : public ButtonView
-//{
-//public:
-//    bool state;
-//    mono::display::Color enabledColor;
-//    TextLabelView offLbl;
-//
-//    OnOffButton(geo::Rect rct);
-//
-//    void setBackground(Color c);
-//    void TouchEnd(mono::TouchEvent &event);
-//
-//    void repaint();
-//};
-
-
 class AppController : public mono::IApplication {
 
     mbed::SPI spi;
@@ -58,6 +41,8 @@ class AppController : public mono::IApplication {
     TextLabelView msgLabel;
     OnOffButtonView toggle;
     StatusIndicatorView ind;
+    mono::Timer dimmer;
+    mono::Timer sleeper;
     bool on;
 
 public:
@@ -67,6 +52,8 @@ public:
 
     void toggleState();
     void networkReady();
+    void dim();
+    void undim();
 
     void repaintIndicator();
 

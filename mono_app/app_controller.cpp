@@ -1,7 +1,13 @@
-
+// This software is part of OpenMono, see http://developer.openmono.com
+// Released under the MIT license, see LICENSE.txt
 #include "app_controller.h"
 
 using namespace mono::geo;
+
+namespace
+{
+    static const int dimBrightness = 50;
+}
 
 HeaderView::HeaderView(geo::Rect rct, String text) :
     View(rct),
@@ -24,106 +30,6 @@ void HeaderView::repaint()
     txtView.repaint();
 }
 
-//OnOffButton::OnOffButton(geo::Rect rct) : ButtonView(rct, "on"), offLbl(rct, "off")
-//{
-//    state = false;
-//    enabledColor = display::BelizeHoleColor;
-//    borderColor = display::AsbestosColor;
-//
-//    int separation = 4;
-//    uint32_t subWidth = (rct.Width()-separation)/2;
-//    uint32_t yOff = rct.Y() + (rct.Height()/2 - textLabel.TextPixelHeight()/2);
-//    uint32_t height = 18;//rct.Height() - (rct.Height()/2 - textLabel.TextPixelHeight()/2);
-//
-//    textLabel.setRect(geo::Rect(rct.X(), yOff, subWidth, height));
-//    offLbl.setRect(geo::Rect(rct.X()+separation+subWidth, yOff, subWidth, height));
-//    offLbl.setAlignment(TextLabelView::ALIGN_CENTER);
-//}
-//
-//void OnOffButton::setBackground(Color c)
-//{
-//    ButtonView::setBackground(c);
-//    offLbl.setBackground(c);
-//}
-//
-//void OnOffButton::TouchEnd(mono::TouchEvent &event)
-//{
-//    bool shouldRepaint = isPressedDown;
-//
-//    isPressedDown = false;
-//
-//    // touch is stil within button area,
-//    if (viewRect.contains(event.Position))
-//    {
-//        state = !state;
-//        clickHandler.call();
-//    }
-//
-//    if (shouldRepaint)
-//        scheduleRepaint();
-//}
-//
-//void OnOffButton::repaint()
-//{
-//    geo::Rect onBorder = ViewRect();
-//    geo::Rect offBorder = ViewRect();
-//
-//    uint32_t subWidth = (viewRect.Width()-4) / 2;
-//    onBorder.setWidth(subWidth);
-//    offBorder.setWidth(subWidth);
-//    offBorder.setX( viewRect.X()+4+subWidth );
-//
-//    if (!isPressedDown && state)
-//    {
-//        display::Color faded = background.alphaBlend(192, display::EmeraldColor);
-//        textLabel.setBackground( faded );
-//        painter.setBackgroundColor(faded);
-//        painter.drawFillRect(onBorder, true);
-//    }
-//    else if (!isPressedDown)
-//    {
-//        textLabel.setBackground(background);
-//        painter.setBackgroundColor(background);
-//        painter.drawFillRect(onBorder, true);
-//    }
-//
-//
-////    if (state && !isPressedDown)
-////    {
-//////
-////        textLabel.setTextColor(faded);
-////    }
-////    else
-//        textLabel.setTextColor( isPressedDown ? borderColorPressed : borderColor );
-//
-//    offLbl.setTextColor( isPressedDown ? borderColorPressed : borderColor );
-//
-//
-//
-//    textLabel.repaint();
-//    offLbl.repaint();
-//
-//    painter.setForegroundColor( isPressedDown ? borderColorPressed : borderColor );
-//    painter.drawRect(onBorder);
-//    painter.setForegroundColor( isPressedDown ? borderColorPressed : borderColor );
-//    painter.drawRect(offBorder);
-//
-//    geo::Rect fatOffBorder(offBorder.X()+1, offBorder.Y()+1, offBorder.Width()-2, offBorder.Height()-2);
-//    painter.drawRect(fatOffBorder, (state || isPressedDown));
-//
-//    geo::Rect fatOnBorder(onBorder.X()+1, onBorder.Y()+1, onBorder.Width()-2, onBorder.Height()-2);
-//    painter.drawRect(fatOnBorder, (!state || isPressedDown));
-//
-////    geo::Point off1(offBorder.UpperLeft()), off2(offBorder.UpperRight());
-////    off1.appendY(1); off1.appendX(1); off2.appendY(1);
-////    painter.drawLine(off1, off2, (state || isPressedDown));
-////
-////    geo::Point on1(onBorder.UpperLeft()), on2(onBorder.UpperRight());
-////    on1.appendY(1); on1.appendX(1); on2.appendY(1);
-////    painter.drawLine(on1, on2, (!state || isPressedDown));
-//}
-
-
 AppController::AppController() :
     spi(RP_SPI_MOSI, RP_SPI_MISO, RP_SPI_CLK, RP_SPI_CS),
     spiComm(spi, RP_SPI_CS, RP_nRESET, RP_INTERRUPT),
@@ -131,7 +37,9 @@ AppController::AppController() :
     wemoLabel(Rect(10,130,70,25),"Switch"),
     msgLabel(Rect(0,220-40,176,40), ""),
     toggle(Rect(85,120,80,35)),
-	ind(Rect(20+176-40-20, 137, 10, 10))
+	ind(Rect(20+176-40-20, 137, 10, 10)),
+    dimmer(60*1000,true),
+    sleeper(10*1000,true)
 {
     bgColor = display::CloudsColor;
     bg.setBackgroundColor(bgColor);
@@ -148,14 +56,17 @@ AppController::AppController() :
     toggle.setClickCallback<AppController>(this, &AppController::toggleState);
 
 	ind.setOffStateColor(mono::display::WetAsphaltColor);
+
+    dimmer.setCallback<AppController>(this,&AppController::dim);
+    sleeper.setCallback(IApplicationContext::EnterSleepMode);
+    dimmer.Start();
 }
 
 void AppController::toggleState()
 {
+    undim();
     on = toggle.isActive();
-
     client = network::HttpClient(String::Format("http://" SERVER_HOST "/%s",on ? "on" : "off"));
-
 	ind.setState(on);
 }
 
@@ -165,7 +76,6 @@ void AppController::networkReady()
 	ind.setState(false);
     msgLabel.setText("");
     wemoLabel.show();
-	//ind.show();
 }
 
 void AppController::monoWakeFromReset()
@@ -179,6 +89,26 @@ void AppController::monoWakeFromReset()
     redpine::Module::Instance()->initialize(&spiComm);
     redpine::Module::setupWifiOnly(WIFI_SSID, WIFI_PASSPHRASE);
     redpine::Module::Instance()->setNetworkReadyCallback<AppController>(this, &AppController::networkReady);
+}
+
+void AppController::dim ()
+{
+    dimmer.Stop();
+    IDisplayController * display = IApplicationContext::Instance->DisplayController;
+    for (int i = display->Brightness(); i >= dimBrightness; --i)
+    {
+        display->setBrightness(i);
+        wait_ms(2);
+    }
+    sleeper.Start();
+}
+
+void AppController::undim ()
+{
+    sleeper.Stop();
+    IDisplayController * display = IApplicationContext::Instance->DisplayController;
+    display->setBrightness(255);
+    dimmer.Start();
 }
 
 void AppController::monoWillGotoSleep()
